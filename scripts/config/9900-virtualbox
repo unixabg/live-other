@@ -30,7 +30,8 @@
 
 Virtualbox ()
 {
-	if ! echo ${_CMDLINE} | grep -qs "live-config.virtualbox="
+	if ! echo ${LIVE_CONFIG_CMDLINE} | grep -qs "live-config.virtualbox" && \
+	   ! echo ${LIVE_CONFIG_CMDLINE} | grep -qs "virtualbox"
 	then
 		return
 	fi
@@ -42,7 +43,7 @@ Virtualbox ()
 
 Configure_virtualbox ()
 {
-	for _PARAMETER in ${_CMDLINE}
+	for _PARAMETER in ${LIVE_CONFIG_CMDLINE}
 	do
 		case "${_PARAMETER}" in
 			live-config.virtualbox=*)
