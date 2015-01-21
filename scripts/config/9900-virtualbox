@@ -112,7 +112,7 @@ cat > /etc/gdm3/PostSession/Default << EOF
 #!/bin/sh
 rm -f /home/${LIVE_USERNAME}/.dmrc
 rm -f /var/cache/gdm/${LIVE_USERNAME}/dmrc
-/sbin/halt
+/sbin/halt -p
 EOF
 
 	echo "Setting up the virtualbox.desktop option."
