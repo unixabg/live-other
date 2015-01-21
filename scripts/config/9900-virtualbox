@@ -160,6 +160,9 @@ EOF
 	########################################################################
 	# Make sure that the .VirtualBox information is setup in /etc/skel or stacked in.
 	########################################################################
+	#rsync -av ${IMAGEPATH}/.VirtualBox /home/${LIVE_USERNAME}/
+	#chown -R ${LIVE_USERNAME}: /home/${LIVE_USERNAME}/.VirtualBox
+	ln -s ${IMAGEPATH}/.VirtualBox /home/${LIVE_USERNAME}/.VirtualBox
 
 	########################################################################
 	# Below is where I use a variable named CRELEASE which is sourced in
