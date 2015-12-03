@@ -1,8 +1,12 @@
 alsa-utils
-firmware-iwlwifi
+extlinux
+#firmware-iwlwifi
+firmware-linux-nonfree
+wireless-tools
 mutter
 network-manager-gnome
 stalonetray
+syslinux-common
 virtualbox
 virtualbox-dkms
 virtualbox-qt
