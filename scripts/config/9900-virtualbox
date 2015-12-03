@@ -147,7 +147,8 @@ amixer set Speaker 98% unmute
 
 /usr/bin/metacity &
 /usr/bin/nm-applet &
-/usr/bin/stalonetray &
+/usr/bin/gnome-panel &
+#/usr/bin/stalonetray &
 /usr/lib/virtualbox/VirtualBox --fullscreen --startvm ${VDINAME}
 EOF
 
