@@ -1,12 +1,13 @@
 #!/bin/bash
 
 XCOM0=`xrandr -q | grep 'VGA1 connected'`
+LDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 !~ /VGA/) print $1}'`
 
 if [ -n "$XCOM0" ] || [ ! "$XCOM0" = "" ]; then
 	echo "VGA Monitor detected, turning on second display at 1024x768."
-	xrandr --output eDP1 --primary --mode 1024x768 --output VGA1 --mode 1024x768
+	xrandr --output $LDISPLAY --primary --mode 1024x768 --output VGA1 --mode 1024x768
 else
 	echo "No VGA detected setting eDP1 to auto resolution."
-	xrandr --output eDP1 --primary --auto
+	xrandr --output $LDISPLAY --primary --auto
 fi
 exit 0;
