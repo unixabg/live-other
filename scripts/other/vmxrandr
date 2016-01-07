@@ -1,13 +1,24 @@
 #!/bin/bash
+#set -x
 
-XCOM0=`xrandr -q | grep 'VGA1 connected'`
-LDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 !~ /VGA/) print $1}'`
+# First let us guess to see if remote display is connected and VGA
+RDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /VGA/) print $1}'`
 
-if [ -n "$XCOM0" ] || [ ! "$XCOM0" = "" ]; then
-	echo "VGA Monitor detected, turning on second display at 1024x768."
-	xrandr --output $LDISPLAY --primary --mode 1024x768 --output VGA1 --mode 1024x768
+# Now let us try to guess to see what the local display is connected to and first guess LVDS
+LDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /LVDS/) print $1}'`
+
+# Test to see if our first guess was correct and if not try again
+if [ -z "$LDISPLAY" ] || [ "$LDISPLAY" = "" ]; then
+	# if nothing found then next guess for eDP1
+	LDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /eDP/) print $1}'`
+fi
+
+# Now that we should have our variables populated let us try to pair up the displays
+if [ -n "$RDISPLAY" ] || [ ! "$RDISPLAY" = "" ]; then
+	echo "Attempt turning on second display at 1024x768."
+	xrandr --output $RDISPLAY --primary --mode 1024x768 --output $LDISPLAY --mode 1024x768
 else
-	echo "No VGA detected setting eDP1 to auto resolution."
+	echo "No VGA detected setting local display back at auto resolution."
 	xrandr --output $LDISPLAY --primary --auto
 fi
 exit 0;
