@@ -1,6 +1,10 @@
 #!/bin/bash
 #set -x
 
+# Export a couple of variables to make udev happy.
+export XAUTHORITY=/home/user/.Xauthority
+export DISPLAY=:0.0
+
 # First let us guess to see if remote display is connected and VGA
 RDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /VGA/) print $1}'`
 
@@ -15,10 +19,10 @@ fi
 
 # Now that we should have our variables populated let us try to pair up the displays
 if [ -n "$RDISPLAY" ] || [ ! "$RDISPLAY" = "" ]; then
-	echo "Attempt turning on second display at 1024x768."
-	xrandr --output $RDISPLAY --primary --mode 1024x768 --output $LDISPLAY --mode 1024x768
+	echo "Attempt turning on second display."
+	xrandr --output $RDISPLAY --auto --right-of $LDISPLAY
 else
-	echo "No VGA detected setting local display back at auto resolution."
-	xrandr --output $LDISPLAY --primary --auto
+	echo "No VGA detected so just turn it off."
+	xrandr --output $RDISPLAY --off
 fi
 exit 0;
