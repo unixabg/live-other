@@ -8,6 +8,12 @@ export DISPLAY=:0.0
 # First let us guess to see if remote display is connected and VGA
 RDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /VGA/) print $1}'`
 
+# Test to see if our first guess was correct for RDISPLAY and if not try again
+if [ -z "$RDISPLAY" ]; then
+	# if nothing found for VGA1 try HDMI1
+	RDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /HDMI/) print $1}'`
+fi
+
 # Now let us try to guess to see what the local display is connected to and first guess LVDS
 LDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /LVDS/) print $1}'`
 
