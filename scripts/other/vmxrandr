@@ -18,17 +18,16 @@ fi
 LDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /LVDS/) print $1}'`
 
 # Test to see if our first guess was correct and if not try again
-if [ -z "$LDISPLAY" ] || [ "$LDISPLAY" = "" ]; then
+if [ -z "$LDISPLAY" ]; then
 	# if nothing found then next guess for eDP1
 	LDISPLAY=`xrandr -q | grep " connected" | awk '{if ($1 ~ /eDP/) print $1}'`
 fi
 
-# Now that we should have our variables populated let us try to pair up the displays
-if [ -n "$RDISPLAY" ] || [ ! "$RDISPLAY" = "" ]; then
+# Now if we have both a remote and local display configured lets try to configure them.
+if [ -n "$RDISPLAY" ] && [ -n "$LDISPLAY" ]; then
 	echo "Attempt turning on second display."
 	xrandr --output $RDISPLAY --auto --right-of $LDISPLAY
 else
-	echo "No VGA detected so just turn it off."
-	xrandr --output $RDISPLAY --off
+	echo "** Failed to detect both local and remote displays. **"
 fi
 exit 0;
