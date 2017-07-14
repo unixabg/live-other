@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=AutoStartVirtualBox
+Exec=/home/user/autostart-virtualbox
+Terminal=false
+Type=Application
+StartupNotify=true
