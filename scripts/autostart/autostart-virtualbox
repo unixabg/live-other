@@ -1,0 +1,209 @@
+#!/bin/sh
+
+# Setting up VirtualBox.
+# This script setups all necessary things to do a complete deployment of
+# VirtualBox player based live systems.
+#
+# The script tests for boot parameter of
+# virtualbox=ACTION:IMAGEPATH:VDINAME
+#
+# ACTION: The operation to perform on the workstation (none|scratch)
+# IMAGEPATH: The folder path to the Virtual image you want to run.
+# VDINAME: The name of the Virtual image you want to run.
+#
+# Notes:To use this file with VirtualBox images you will need to have a few things
+# setup:
+#
+# 1. VirtualBox needs to be installed with virtualbox-qt and virtualbox-dkms.
+# 2. This script tests for a partition names for writing image data and is used as
+#    scratch space. This scratch space should be a file system with linux permissions
+#    such as ext2.
+# 3. VM image(s) should be in a mounted folder and setup as follows:
+#    - Image(s) set to snapshot mode.
+#    - For each image, the image folder needs to have a file called
+#      image-release with a variable CRELEASE. An example: CRELEASE="1.0.0"
+#
+# The image-release file is used by the image maintainer and this script to tell
+# workstation(s) using a given image, to erase locally stored Virtual image files
+# and setup with the newly configure image. The operation of erasing locally
+# stored Virtual image files, is referred to as a scratch.
+
+Virtualbox ()
+{
+	_CMDLINE=$(cat /proc/cmdline)
+	if ! echo ${_CMDLINE} | grep -qs "virtualbox"
+	then
+		return
+	fi
+
+	echo -n "Configuring VirtualBox"
+
+	Configure_virtualbox
+	Launch_virtualbox
+}
+
+Configure_virtualbox ()
+{
+	for _PARAMETER in ${_CMDLINE}
+	do
+		case "${_PARAMETER}" in
+			virtualbox=*)
+				ACTION="$(echo ${_PARAMETER#virtualbox=} | awk -F: '{ print $1 }')"
+				IMAGEPATH="$(echo ${_PARAMETER#virtualbox=} | awk -F: '{ print $2 }')"
+				VDINAME="$(echo ${_PARAMETER#virtualbox=} | awk -F: '{ print $3 }')"
+				echo "Virtualbox options passed are ACTION=${ACTION}, IMAGEPATH=${IMAGEPATH}, VDINAME=${VDINAME} ."
+				;;
+		esac
+done
+
+
+	# Set the user name we are using.
+	_USERNAME=$(whoami)
+	echo "The username for setup is ${_USERNAME} ."
+
+	echo "Checking for a local scratch device."
+	# Try to find a partition labeled virtualbox and if not then try first partition on first drive of the unit.
+	MOUNTDEV="$(sudo blkid | grep virtualbox | awk -F: '{ print $1 }')"
+
+	if [ -z "${MOUNTDEV}" ]
+	then
+		MOUNTDEV="$(fdisk -l | grep a1 | awk '{ print $1 }')"
+	fi
+
+	echo "Potential scratch devices of: ${MOUNTDEV}"
+
+	echo "Checking for clean scratch file system on ${MOUNTDEV}!"
+	sudo fsck -C -a ${MOUNTDEV}
+
+	# Check for the mount point directory and take correct action.
+	if [ -d '${IMAGEPATH}' ]
+	then
+		echo "The ${IMAGEPATH} directory exists and is where we will compose the operations for the image."
+	else
+		echo "Making the ${IMAGEPATH} directory where we will compose the operations for the image."
+		sudo mkdir -p ${IMAGEPATH}
+	fi
+
+	# Test to see if the virtualbox partition is already mounted
+	if mount | grep -q /virtualbox
+	then
+		echo "Local scratch device appears to be mounted."
+	else
+		echo "Attempting to mount local scratch device."
+		sudo mount -v ${MOUNTDEV} ${IMAGEPATH}
+	fi
+
+	# Check for the mount point directory and take correct action.
+	# Add user to vboxusers group and compose the /etc/fstab accordingly
+	echo "Setup ${_USERNAME} vboxusers and correct settings on /etc/fstab."
+	sudo usermod -a -G vboxusers ${_USERNAME}
+	_VBOXGID=$(grep vboxusers /etc/group | awk -F: '{print $3}')
+	echo "none     /proc/bus/usb     usbfs      devgid=${_VBOXGID},devmode=664    0    0" | sudo tee /etc/fstab
+
+	########################################################################
+	# Make sure that the .VirtualBox information is setup in /etc/skel or stacked in.
+	########################################################################
+	#rsync -av ${IMAGEPATH}/.VirtualBox /home/${_USERNAME}/
+	#chown -R ${_USERNAME}: /home/${_USERNAME}/.VirtualBox
+	ln -s ${IMAGEPATH}/.VirtualBox /home/${_USERNAME}/.VirtualBox
+
+	########################################################################
+	# Below is where I use a variable named CRELEASE which is sourced in
+	# from the image directory.
+	# This file is created by the person managing the images so he can
+	# modify an image and all workstations using the image will know to auto
+	# scratch (erase local snapshot info) on next boot when the difference
+	# is detected between the image mainter variable in image-relase and the
+	# file local-release (with variable RELEASE).
+	########################################################################
+	# This is the test for when we want to upgrade an image and deploy to
+	# all workstations. Workstations will scratch upon CRELEASE != RELEASE.
+
+	if [ -f "${IMAGEPATH}/${VDINAME}/image-release" ]
+	then
+		. "${IMAGEPATH}/${VDINAME}/image-release"
+		echo "Found image-release: ${CRELEASE} "
+	else
+		echo "******* No image-release found to set the CRELEASE variable! *******"
+		CRELEASE="NONE"
+	fi
+
+	echo "Preparing VirtualBox image version ${CRELEASE}"
+
+	echo "Checking to see if scratch was requested at boot."
+
+	if [ "${ACTION}" = "scratch" ]
+	then
+		echo "Scratching everything in scratch dir on the fly!"
+		# On VirtualBox remove a couple of directories.
+		sudo rm -rf ${IMAGEPATH}/Logs
+		sudo rm -rf ${IMAGEPATH}/Snapshots
+		# Only doing *.* opposed to * since folders with VirtualBox images may be on the same block device.
+		sudo rm -f ${IMAGEPATH}/*.*
+		# Also now have to remove local-release.
+		sudo rm -f ${IMAGEPATH}/local-release
+		echo "Scratching completed!"
+	fi
+
+	if [ -f ${IMAGEPATH}/local-release ]
+	then
+		. ${IMAGEPATH}/local-release
+		echo "Found local-release: ${RELEASE} "
+
+		if [ "${RELEASE}" != "${CRELEASE}" ]
+		then
+			echo "Upgrading release from version ${RELEASE} to ${CRELEASE}."
+			echo "We will take scratch actions."
+
+			# On VirtualBox remove a couple of directories.
+			sudo rm -rf ${IMAGEPATH}/Logs
+			sudo rm -rf ${IMAGEPATH}/Snapshots
+			# Only doing *.* opposed to * since folders with VirtualBox images may be on the same block device.
+			sudo rm -f ${IMAGEPATH}/*.*
+			# Also now have to remove local-release.
+			sudo rm -f ${IMAGEPATH}/local-release
+			echo "Scratching completed!"
+
+			echo RELEASE=\"${CRELEASE}\" > ${IMAGEPATH}/local-release
+			echo "Rsyncing in some stuff to ${IMAGEPATH}."
+			sudo rsync --exclude ${VDINAME}.vdi -r ${IMAGEPATH}/${VDINAME}/ ${IMAGEPATH}/
+
+			# Link in the big chunks.
+			sudo ln -s ${IMAGEPATH}/${VDINAME}/${VDINAME}.vdi ${IMAGEPATH}
+		else
+			echo "Version match no scratch action taken!"
+		fi
+	else
+		echo "Looks like an initial release setup for version ${CRELEASE}."
+		echo RELEASE=\"${CRELEASE}\" > ${IMAGEPATH}/local-release
+		echo "Rsyncing in some stuff to ${IMAGEPATH}."
+		sudo rsync --exclude ${VDINAME}.vdi -r ${IMAGEPATH}/${VDINAME}/ ${IMAGEPATH}/
+
+		# Link in the big chunks.
+		sudo ln -s ${IMAGEPATH}/${VDINAME}/${VDINAME}.vdi ${IMAGEPATH}
+	fi
+
+	echo "Setting the permissions on the ${IMAGEPATH} folder."
+	sudo chown -R ${_USERNAME}:${_USERNAME} ${IMAGEPATH}
+
+	echo "Completed custom options for username = ${_USERNAME} !"
+}
+
+Launch_virtualbox ()
+{
+	##########################################################
+	# Unremark the below lines to disable screen from blanking.
+	#setterm -blank 0 -powersave off -powerdown 0
+	#xset -dpms
+	#xset s off
+	#xset s noblank
+
+	amixer set Master 98% unmute
+	amixer set PCM 98% unmute
+	amixer set Headphones 98% unmute
+	amixer set Speaker 98% unmute
+
+	/usr/lib/virtualbox/VirtualBox --fullscreen --startvm ${VDINAME}
+}
+
+Virtualbox
