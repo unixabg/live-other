@@ -204,6 +204,9 @@ Launch_virtualbox ()
 	amixer set Speaker 98% unmute
 
 	/usr/lib/virtualbox/VirtualBox --fullscreen --startvm ${VDINAME}
+
+	# Force shutodown when VirtualBox closes.
+	#sudo init 0
 }
 
 Virtualbox
