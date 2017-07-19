@@ -205,8 +205,15 @@ Launch_virtualbox ()
 
 	/usr/lib/virtualbox/VirtualBox --fullscreen --startvm ${VDINAME}
 
-	# Force shutodown when VirtualBox closes.
-	#sudo init 0
+	if [ "${ACTION}" = "rescue" ]
+	then
+		# Rescue boot called do not shutodown when VirtualBox closes.
+		#sudo init 0
+		echo "Action type ${ACTION} invoked for VirtualBox boot!"
+	else
+		# Force shutodown when VirtualBox closes.
+		sudo init 0
+	fi
 }
 
 Virtualbox
